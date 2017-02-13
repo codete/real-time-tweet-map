@@ -15,6 +15,8 @@ import scala.concurrent.duration.DurationInt
 /**
   * Main Controller and configuration properties holder.
   */
+//TODO we have a lot of credentials. Maybe they can be moved to separate properties file ? Even in build.sbt will be good.
+// http://stackoverflow.com/questions/25665848/how-to-load-setting-values-from-a-java-properties-file
 object Application extends Controller {
 
   System.setProperty("twitter4j.oauth.consumerKey", "<TWITTER-CONSUMER-KEY>")
@@ -24,11 +26,12 @@ object Application extends Controller {
 
   val UID = "uid"
   val APP_NAME = "codete.com"
-  val SPARK_URL = "local[*]"
+  val SPARK_URL = "local[*]" // TODO - Just a double check. Main purpose of this is simple research project and we will probably not gonna use external cluster ever ?
   val SPARK_BATCH_DURATION = Milliseconds(500)
 
   val USA_BOUNDING_BOX = Array(Array(-124.0, 26.0), Array(-65.0, 49.0))
   val WORLD_BOUNDING_BOX = Array(Array(-180.0, -90.0), Array(180.0, 90.0))
+  // TODO Array of arrays ? In Scala we have pair and lot of good features to be shorter with that
 
   private var counter = 0
 

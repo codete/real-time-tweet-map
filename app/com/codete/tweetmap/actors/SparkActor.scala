@@ -28,6 +28,9 @@ class SparkActor extends Actor {
 
       sparkStreamingContext.start()
       sparkStreamingContext.awaitTermination()
+      /* TODO Akka - should SparkContext be a singleton ? Isin't it initialized on every event ?
+         If it is this is really evil because it's a heavy object. Moreover we are using local spark distribution and raise it on every incoming tweet series.
+      */
     }
   }
 
@@ -47,12 +50,14 @@ class SparkActor extends Actor {
     // Creates a Twitter stream pre-filtered by geolocation
     val geoFilter = createGeoFilterQuery(locations)
     val stream = new TwitterGeoInputDStream(sparkStreamingContext, Option(geoFilter))
+    // TODO Can't we use implicit wrappers. Look like a plain old Java approach ? VERIFY!!!
 
     stream.foreachRDD(rdd => {
       var messages = new ArrayBuffer[Message]()
       rdd
         .filter(tweet => tweet.getGeoLocation != null || tweet.getPlace != null)
         .collect()
+        // TODO Wouldn't it be better to use `map` and then collect instead of foreach and appending ?
         .foreach(tweet => {
           messages += new Message(tweet.getText, extractGeolocation(tweet))
         })
@@ -71,7 +76,7 @@ class SparkActor extends Actor {
   private def createGeoFilterQuery(locations: Array[Array[Double]]): FilterQuery = {
     val tweetFilter = new FilterQuery
     tweetFilter.locations(locations(0), locations(1))
-    tweetFilter
+    tweetFilter // TODO This line can be removed as tweetFilter returns itself
   }
 
   /**
@@ -84,6 +89,7 @@ class SparkActor extends Actor {
   private def extractGeolocation(tweet: Status): Location = {
     if (tweet.getGeoLocation != null) {
       new Location(tweet.getGeoLocation.getLatitude, tweet.getGeoLocation.getLongitude)
+      //TODO Case classes can be used without constructor. Location(x, y) is enough. This applies to all case classes.
     } else {
       getApproximatePlaceGeolocation(tweet)
     }
