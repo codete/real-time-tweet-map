@@ -28,8 +28,9 @@ class SparkActor extends Actor {
 
       sparkStreamingContext.start()
       sparkStreamingContext.awaitTermination()
-      /* TODO Akka - should SparkContext be a singleton ? Isin't it initialized on every event ?
-         If it is this is really evil because it's a heavy object. Moreover we are using local spark distribution and raise it on every incoming tweet series.
+      /* TODO Akka - should SparkContext be a singleton ? Isin't it initialized on received message ?
+         If it is this is really evil because it's a heavy object. Moreover we are using local spark distribution and it might raise up on every incoming tweet series.
+         Please verify it
       */
     }
   }
