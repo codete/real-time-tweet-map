@@ -13,7 +13,7 @@ class MapActor extends Actor with ActorLogging {
   def receive = LoggingReceive {
     case m: MessagePackage => users foreach {
       _ ! m
-    }
+    } //TODO `m` can be replaced with msg or something more meaningful as it was misleading for me
     case Subscribe => {
       users += sender
       context watch sender
