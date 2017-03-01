@@ -11,8 +11,8 @@ class MapActor extends Actor with ActorLogging {
   var users = Set[ActorRef]()
 
   def receive = LoggingReceive {
-    case m: MessagePackage => users foreach {
-      _ ! m
+    case message: MessagePackage => users foreach {
+      _ ! message
     }
     case Subscribe => {
       users += sender

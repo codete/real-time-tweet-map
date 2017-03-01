@@ -1,15 +1,12 @@
 package com.codete.tweetmap.actors
 
 import akka.actor.{Actor, Props}
-import com.codete.tweetmap.controllers.Application
-import com.codete.tweetmap.utils.TwitterGeoInputDStream
+import com.codete.tweetmap.utils.{AppProperties, GeolocationEstimator, TwitterGeoInputDStream}
 import org.apache.spark.SparkConf
 import org.apache.spark.streaming.StreamingContext
-import org.apache.spark.streaming.twitter.TwitterUtils
 import play.libs.Akka
-import twitter4j.{FilterQuery, Status}
+import twitter4j.FilterQuery
 
-import scala.collection.mutable.ArrayBuffer
 
 /**
   * Akka actor responsible for SparkContext initialization and Twitter streaming data gathering.
@@ -21,8 +18,8 @@ class SparkActor extends Actor {
     */
   override def receive = {
     case SparkGatheringJob(locations: Array[Array[Double]]) => {
-      val sparkConf = new SparkConf().setAppName(Application.APP_NAME).setMaster(Application.SPARK_URL)
-      val sparkStreamingContext = new StreamingContext(sparkConf, Application.SPARK_BATCH_DURATION)
+      val sparkConf = new SparkConf().setAppName(AppProperties.APP_NAME).setMaster(AppProperties.SPARK_LOCAL_URL)
+      val sparkStreamingContext = new StreamingContext(sparkConf, AppProperties.SPARK_BATCH_DURATION)
 
       registerSparkJobInContext(sparkStreamingContext, locations)
 
@@ -49,15 +46,12 @@ class SparkActor extends Actor {
     val stream = new TwitterGeoInputDStream(sparkStreamingContext, Option(geoFilter))
 
     stream.foreachRDD(rdd => {
-      var messages = new ArrayBuffer[Message]()
-      rdd
+      val messages = rdd
         .filter(tweet => tweet.getGeoLocation != null || tweet.getPlace != null)
+        .map(tweet => Message(tweet.getText, GeolocationEstimator.estimateTweetGeolocation(tweet)))
         .collect()
-        .foreach(tweet => {
-          messages += new Message(tweet.getText, extractGeolocation(tweet))
-        })
       if (messages.nonEmpty) {
-        MapActor.map ! MessagePackage(Application.APP_NAME, messages.toArray)
+        MapActor.map ! MessagePackage(AppProperties.APP_NAME, messages)
       }
     })
   }
@@ -69,37 +63,7 @@ class SparkActor extends Actor {
     * @return FilterQuery instance
     */
   private def createGeoFilterQuery(locations: Array[Array[Double]]): FilterQuery = {
-    val tweetFilter = new FilterQuery
-    tweetFilter.locations(locations(0), locations(1))
-    tweetFilter
-  }
-
-  /**
-    * If a Tweet is geotagged, returns Location with these coordinates.
-    * Otherwise, returns Location of the approximate place of the tweet.
-    *
-    * @param tweet Tweet status from Twitter API
-    * @return Location
-    */
-  private def extractGeolocation(tweet: Status): Location = {
-    if (tweet.getGeoLocation != null) {
-      new Location(tweet.getGeoLocation.getLatitude, tweet.getGeoLocation.getLongitude)
-    } else {
-      getApproximatePlaceGeolocation(tweet)
-    }
-  }
-
-  /**
-    * Creates Location basing on the average values of latitudes and longitudes of Tweet's Place Bounding Box coordinates.
-    *
-    * @return Location
-    */
-  private def getApproximatePlaceGeolocation(tweet: Status): Location = {
-    val boundingBoxCoordinates = tweet.getPlace.getBoundingBoxCoordinates
-    val latitudes = boundingBoxCoordinates.flatMap(a => a.map(_.getLatitude))
-    val longitudes = boundingBoxCoordinates.flatMap(a => a.map(_.getLongitude))
-
-    new Location((latitudes.min + latitudes.max) / 2, (longitudes.min + longitudes.max) / 2)
+    new FilterQuery().locations(locations(0), locations(1))
   }
 
 }

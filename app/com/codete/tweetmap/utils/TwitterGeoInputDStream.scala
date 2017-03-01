@@ -23,7 +23,14 @@ class TwitterGeoInputDStream(
                             ) extends ReceiverInputDStream[Status](ssc_) {
 
   private def createOAuthAuthorization(): Authorization = {
-    new OAuthAuthorization(new ConfigurationBuilder().build())
+    new OAuthAuthorization(
+      new ConfigurationBuilder()
+        .setOAuthConsumerKey(AppProperties.CONSUMER_KEY)
+        .setOAuthConsumerSecret(AppProperties.CONSUMER_SECRET)
+        .setOAuthAccessToken(AppProperties.ACCESS_TOKEN)
+        .setOAuthAccessTokenSecret(AppProperties.ACCESS_TOKEN_SECRET)
+        .build()
+    )
   }
 
   private val authorization = createOAuthAuthorization()

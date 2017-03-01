@@ -1,7 +1,7 @@
 package com.codete.tweetmap.controllers
 
 import com.codete.tweetmap.actors.{SparkActor, SparkGatheringJob, UserActor}
-import org.apache.spark.streaming.Milliseconds
+import com.codete.tweetmap.utils.AppProperties
 import play.api.Logger
 import play.api.Play.current
 import play.api.libs.concurrent.Akka
@@ -17,16 +17,6 @@ import scala.concurrent.duration.DurationInt
   */
 object Application extends Controller {
 
-  System.setProperty("twitter4j.oauth.consumerKey", "<TWITTER-CONSUMER-KEY>")
-  System.setProperty("twitter4j.oauth.consumerSecret", "<TWITTER-CONSUMER-SECRET>")
-  System.setProperty("twitter4j.oauth.accessToken", "<TWITTER-ACCESS-TOKEN>")
-  System.setProperty("twitter4j.oauth.accessTokenSecret", "<TWITTER-ACCESS-TOKEN-SECRET>")
-
-  val UID = "uid"
-  val APP_NAME = "codete.com"
-  val SPARK_URL = "local[*]"
-  val SPARK_BATCH_DURATION = Milliseconds(500)
-
   val USA_BOUNDING_BOX = Array(Array(-124.0, 26.0), Array(-65.0, 49.0))
   val WORLD_BOUNDING_BOX = Array(Array(-180.0, -90.0), Array(180.0, 90.0))
 
@@ -35,7 +25,7 @@ object Application extends Controller {
   /**
     * Schedules SparkActor initialization and running.
     */
-  Akka.system.scheduler.scheduleOnce(3 seconds, SparkActor.actor, SparkGatheringJob(WORLD_BOUNDING_BOX))
+  Akka.system.scheduler.scheduleOnce(AppProperties.GATHERING_DELAY seconds, SparkActor.actor, SparkGatheringJob(WORLD_BOUNDING_BOX))
 
   /**
     * Index endpoint of the web app.
@@ -44,13 +34,13 @@ object Application extends Controller {
     * @return view to be rendered
     */
   def index(isMarkerMap: Boolean) = Action { implicit request => {
-    val uid = request.session.get(UID).getOrElse {
+    val uid = request.session.get(AppProperties.UID).getOrElse {
       counter += 1
       counter.toString
     }
     Ok(com.codete.tweetmap.views.html.index(uid, isMarkerMap)).withSession {
       Logger.debug("Session UID: " + uid)
-      request.session + (UID -> uid)
+      request.session + (AppProperties.UID -> uid)
     }
   }
   }
@@ -61,7 +51,7 @@ object Application extends Controller {
     * @return UID assigned to the user / Forbidden status
     */
   def ws = WebSocket.tryAcceptWithActor[JsValue, JsValue] { implicit request =>
-    Future.successful(request.session.get(UID) match {
+    Future.successful(request.session.get(AppProperties.UID) match {
       case None => Left(Forbidden)
       case Some(uid) => Right(UserActor.props(uid))
     })
